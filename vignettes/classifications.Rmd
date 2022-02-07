@@ -1,0 +1,264 @@
+---
+title: "Classification of hospital results based on Bayesian decision theory"
+author: "© IQTIG 2022"
+date: "`r Sys.Date()`"
+output:
+  output: rmarkdown::pdf_document
+vignette: >
+  %\VignetteIndexEntry{Classification of hospital results based on Bayesian decision theory}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: reference.bib
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Summary
+
+This vignette demonstrates how to use the `iqtigbdt` package for the classification of quality indicator results of a hospital (or some other healthcare provider) based on the methodology developed in @hengelbrock_2021. It illustrates how decision boundaries for the classification of provider results are calculated and displayed in a so called funnelplot [@spiegelhalter2005]. Furthermore, the theoretical sensitivity and specificity of decision rules in specific scenarios are calculated as illustrative examples.
+
+The following packages are being used:
+
+-   `iqtigbdt`
+-   `dplyr`
+-   `ggplot2`
+
+```{r setup, include=FALSE}
+library(iqtigbdt)
+library(dplyr)
+library(ggplot2)
+```
+
+## Statistical Methodology
+
+### Notation and Setting
+
+In the following, we assume that a binary *quality indicator* is used to measure a certain aspect of the quality of care provided by a specific hospital (or some other healthcare provider), for which data is collected over a given time period and then subsequently analyzed. $J$ denotes the number of relevant patients for the quality indicator at the hospital in the time period. Let $O_j$ denote the binary outcome of interest of patient $j, j=1, \ldots, J$, at the hospital. We assume that the outcome variables are independent and identically distributed Bernoulli random variables (given $\theta$) with outcome probability $\text{Prob}(O_j = 1) = \theta$. Typical examples for binary outcomes of interest are adverse events like the death of a patient or complications during surgery. Furthermore, let $O$ denote the sum of the outcome variables of interest, i.e. $O = \sum\limits_{j=1}^J O_j$, that is the number of events of interest at the specific hospital. By assumption, $$O|J,\theta \sim \operatorname{Bin}(J, \theta).$$
+
+We are interested in classifying a provider result as *outlier* or *non-outlier* based on whether its underlying quality of care lies within a given reference interval $[0;R]$, with reference value $R$. As this classification is a decision under uncertainty, @hengelbrock_2021 proposed three classification methods based on different utilities. 
+
+### Classification for the pathway of external reporting
+
+For the pathway of public reporting, an optimal Bayes decision rule maximizing expected utility was derived as
+
+$$
+  d_{\text{report}}(o,J,R,\theta) = \text{I} \left(P(\theta \le R|o,J) < \frac{\mu}{\mu + \eta} \right),
+$$
+
+with $P(\theta \le R|o,J)$ as A-Posteriori probability for $\theta \le R$ given $o$ and $J$ and a A-Priori distribution for $\theta$, and utilities $\mu$ and $\eta$ (for details see @hengelbrock_2021). $I()$ denotes the indicator function, which is 1 if its argument is true and is 0 otherwise. For the setting of a binary quality indicator, the conjugate priori distribution for $\theta$,
+
+$$
+\theta \sim \text{Beta}(a, b),
+$$
+
+leads to the posterior distribution
+
+$$
+\theta | o,J \sim \text{Beta}(o + a, J - o + b).
+$$ 
+The function `compute_rate_dc()` computes the posterior probability $P(\theta \le R|o,J)$ given values for `o` and `J`, a reference value `R` and parameters `a` and `b` of the priori distribution, which can than be compared with the value $\alpha = \frac{\mu}{\mu + \eta}$ by using `classify_dc()`, which returns the classification decision as *outlier* (`TRUE`) or *non-outlier* (`FALSE`). In the function name, `rate` refers to a quality indicator without risk adjustment (which is traditionally called a *rate* in the German quality assurance of health-care providers).
+
+### Classification for the pathway of change
+
+For the pathway of change, an optimal Bayes decision rule maximizing expected utility was derived as
+
+$$
+d_{\text{change}}(o, J, R, \theta) = \text{I}\left(\omega < \int_{0}^{1}\delta \cdot (\theta - R)_+ \cdot J \cdot f(\theta,o,J) \text{d}\theta \right).
+$$ 
+Here, $\omega$ can be interpreted as the relation of utilities between those of saving resources by not implementing measures of change for one hospital and those of its future patients benefiting from measures of change (for details, see again @hengelbrock_2021).
+
+The function `compute_rate_dc(..., pathway = "change")` computes the decision criteria $$\int_{0}^{1} (\theta - R)_+ \cdot J \cdot f(\theta,o,J) \text{d}\theta$$ given values for `o` and `J`, a reference value `R` and parameters `a` and `b` of the priori distribution (setting $\delta = 1$). The resulting value can be compared with the value $\omega$ via `classify_dc(..., pathway = "change")`, returning the classification decision as *outlier* (`TRUE`) or *non-outlier* (`FALSE`).
+
+### Naive classification
+
+The third classification method consists of comparing the point estimate $\frac{o}{J}$ for $\theta$ with the reference value $R$ and classifies results as *outlier* if the point estimate lies outside the reference area. The function `classify_dc(..., pathway = "naive")` returns the classification decision as *outlier* (`TRUE`) or *non-outlier* (`FALSE`) given $o$, $J$ and $R$.
+
+## Exemplary setting
+
+```{r QI-setup, include=FALSE}
+ref_value <- 0.15
+max_n <- 200
+omega <- 2
+alpha <- 0.05
+```
+
+For the calculation of critical values, we assume a rate-based indicator with reference value $\le`r ref_value*100` \%$. For the decision rule `reporting`, we set $\alpha = `r alpha*100` \%$ and $\omega = `r omega`$ for the decision rule `change`.
+
+As a first example, we consider a hospital with 10 patients of which 3 experienced the "interesting" adverse outcome as measured by the quality indicator (e.g. complications during surgery). For this result, the decision criteria for the pathway of *reporting* can be calculated as:
+
+```{r}
+(dc_reporting <- compute_rate_dc(o = 3, n = 10, t = 0.15))
+```
+
+Using the threshold $\alpha = 5\%$, the outlier classification
+
+```{r}
+classify_dc(dc_reporting, 0.05)
+```
+
+returns `r classify_dc(dc_reporting, 0.05)`, thus the hospital result would be classified as non-outlier.
+
+The decision criteria for the pathway of *reporting* can be calculated as:
+
+```{r}
+(dc_change <- compute_rate_dc(o = 3, n = 10, t = 0.15,
+                              pathway = "change"))
+```
+
+Using the threshold $\omega = 2$, this can then again be classified:
+
+```{r}
+classify_dc(dc_reporting, 2, pathway = "change")
+```
+
+Thus, also for the pathway of *change*, the hospital result would be classified as non-outlier. Only the naive classification results in a classification as outlier:
+
+```{r}
+classify_dc(3/10, 0.15, pathway = "naive")
+```
+
+## Funnelplot
+
+In the next step, critical values for the classification as outlier can be calculated and displayed in a funnelplot [@spiegelhalter2005], in which all possible indicator outcomes are displayed over a range of number of patients $J$. For each method of classification, the critical values are plotted that indicate which observed results are classified as outliers (those equal to or above the critical value):
+
+```{r funnelplot, fig.width=7, fig.height=5, fig.align="center", echo=FALSE, warning=FALSE}
+dataset <- data.frame(
+  o = rep(0:max_n, each = length(0:max_n)),
+  n = rep(0:max_n, length(0:max_n))
+) %>%
+  filter(n > 0 & n >= o) %>%
+  mutate(
+    expected_loss_report = mapply(compute_rate_dc,
+      n = n, o = o,
+      t = ref_value
+    ),
+    expected_loss_change = mapply(compute_rate_dc,
+      n = n, o = o,
+      t = ref_value, pathway = "change"
+    )
+    ) %>% 
+  mutate(
+    classify_naive = mapply(classify_dc,
+      dc = o/n, threshold_value = ref_value,
+      pathway = "naive"
+    ),
+    classify_change = mapply(classify_dc,
+      dc = expected_loss_change, threshold_value = omega,
+      pathway = "change"
+    ),
+    classify_report = mapply(classify_dc,
+      dc = expected_loss_report, threshold_value = alpha
+    )
+  )
+
+funnel_df <- purrr::map_df(
+  as.list(3:ncol(dataset)),
+  function(x) dataset %>% 
+    filter(across(all_of(x), ~ . == TRUE)) %>% 
+    group_by(n) %>% 
+    summarise(o = min(o),
+              pathway = colnames(dataset)[x])
+)
+
+ggplot(funnel_df, aes(n, o/n, color = pathway)) +
+  geom_rect(aes(xmin=-Inf, xmax=Inf, ymin=0, ymax=ref_value), col="white", fill = "grey90") +
+  geom_line(lwd = 1.5) +
+  scale_x_continuous("Number of patients (J)", limits = c(0, max_n)) +
+  scale_y_continuous("Observed result (o/J)", limits = c(0, 1), labels = scales::percent) +
+  theme(text = element_text(size=14)) +
+  scale_color_manual("", values=c("black", "grey80", "grey50"),
+                     labels=c(bquote(d[change]*"("*omega~"="~.(omega)*")"), bquote(d[naive]), 
+                              bquote(d[report]*"("*alpha~"="~ .(alpha * 100) * "%)"))) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+An interactive version of the funnelplot can be run as a Shiny app [@shiny] by running `run_example("funnelplot")` or be accessed via \url{https://iqtig.shinyapps.io/funnel_plot/}.
+
+## Sensitivity and Specificity
+
+Sensitivity and specificity of the decision rules are calculated and compared for three scenarios: with underlying quality of care within (*in control*: $\theta = 10\%$), outside (*out of control*: $\theta = 20\%$), and at the border of the reference area (*borderline*: $\theta = R = 15\%$). Sensitivity is here defined as the probability of identifying outlying hospitals as performance outliers (and applies thus only to the out-of-control scenario), and specificity as probability of identifying non-outliers as non-outliers (and applies to the in-control and borderline scenario). For each scenario, sensitivity and $1 - \text{specificity}$ are calculated for a varying number of patients treated by the hospital.
+
+```{r sensitivity_and_specificity, fig.width=7, fig.height=5, fig.align="center", echo=FALSE}
+prob_outlier_naive <- function(n_value, t_value, theta){
+  poss_events <- 0L:n_value
+    outlier <- poss_events[classify_dc(threshold_value = t_value, pathway = "naive",
+                                            dc = (poss_events / n_value))]
+    sum(dbinom(outlier, n_value, theta))
+}
+    
+prob_outlier_reporting <- function(n_value, t_value, theta, alpha_value = alpha, 
+                                   a = 0.5, b = 0.5){
+  poss_events <- 0L:n_value
+    outlier <- poss_events[
+      classify_dc(threshold_value = alpha_value,
+                       dc = compute_rate_dc(
+                         o = poss_events, n = n_value, t = t_value,
+                         prior_a = a, prior_b = b
+                       ))
+    ]
+    sum(dbinom(outlier, n_value, theta))
+}
+
+prob_outlier_change <- function(n_value, t_value, theta, omega_value = omega, 
+                                a = 0.5, b = 0.5){
+  poss_events <- 0L:n_value
+    outlier <- poss_events[
+      classify_dc(threshold_value = omega_value, pathway = "change",
+                       dc = compute_rate_dc(
+                         o = poss_events, n = n_value, t = t_value,
+                         prior_a = a, prior_b = b,
+                         pathway = "change"
+                       )
+      )
+    ]
+    sum(dbinom(outlier, n_value, theta))
+}
+
+# Setting:
+rho <- ref_value # reference value
+# three scenarios: in-control, borderline and out-of-control:
+theta_grid <- list(0.1, 0.15, 0.2) 
+n_grid <- c(1:200)
+    
+res1 <- purrr::map_df(
+  theta_grid,
+  function(pi) {
+    data.frame(
+      n = n_grid,
+      theta = pi,
+      naive = mapply(prob_outlier_naive, n = n_grid, theta = pi, t = rho),
+      reporting = mapply(prob_outlier_reporting, n = n_grid, theta = pi, t = rho),
+      change = mapply(prob_outlier_change, n = n_grid, theta = pi, t = rho)
+    )
+  }
+) %>%
+  tidyr::pivot_longer(naive:change) %>%
+  mutate(
+    pi_label = paste0(theta * 100, "%"),
+    scenario_nr = ifelse(theta == 0.1, "a)", ifelse(theta == 0.15, "b)", "c)")),
+    scenario_name = ifelse(theta == 0.1, "in control: ", ifelse(theta == 0.15, "borderline: ", "out of control: "))
+  )
+
+ggplot(res1, aes(n, value, group=name, color=name)) +
+  geom_line(lwd=0.8) +
+  facet_wrap(.~scenario_nr + scenario_name + pi_label, ncol = 3, labeller = label_bquote(.(scenario_name) ~ theta == .(pi_label))) +
+  theme_minimal() +
+  theme(text = element_text(size=14)) +
+  theme(legend.position = "bottom") +
+  scale_x_continuous("Number of patients (J)") +
+  scale_y_continuous(expression(P("Decision = Outlier" ~~ "|" ~ theta,J)),
+                     labels = scales::percent) +
+  scale_color_manual("", values=c("black", "grey80", "grey50"),
+                     labels=c(bquote(d[change]*"("*omega~"="~.(omega)*")"), bquote(d[naive]), 
+                              bquote(d[report]*"("*alpha~"="~ .(alpha * 100) * "%)")))
+```
+
+An interactive version of the analysis of sensitivity and specificity can be run as a Shiny app [@shiny] by running `run_example("sensitivity_specificity")` or be accessed via \url{https://iqtig.shinyapps.io/sensitivity_specificity/}.
+
+## References

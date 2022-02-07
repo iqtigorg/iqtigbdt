@@ -1,0 +1,28 @@
+Package: iqtigbdt
+Type: Package
+Title: Binary Classifications for Quality Indicators in Healthcare based on Bayesian Decision Theory (bdt)
+Version: 1.0.0
+Authors@R: c(person("Institut für Qualitätssicherung und Transparenz im Gesundheitswesen (IQTIG)",
+                    role = c("aut", "cph")),
+             person("IQTIG Verfahrenssupport",
+                    email = "verfahrenssupport@iqtig.org", role = "cre"))
+Description: An implementation of three R functions for the classification of quality incicator results based on a binary quality indicator and the interactive analysis of funnelplots, sensitivity and specificity.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 3.3.0)
+Imports:
+    stats
+Suggests:
+    rmarkdown,
+    knitr,
+    dplyr,
+    ggplot2,
+    purrr,
+    scales,
+    tidyr,
+    shiny,
+    testthat (>= 2.0)
+RoxygenNote: 7.1.2
+VignetteBuilder: knitr

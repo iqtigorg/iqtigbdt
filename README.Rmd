@@ -1,0 +1,35 @@
+---
+output: github_document
+bibliography: vignettes/reference.bib
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+library(iqtigfunctions)
+```
+
+# iqtigbdt
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of `iqtigbdt` is to provide an implementation of the classification methods developed and described in @hengelbrock_2021. For a detailed, technical reference of the provided functions, please use the `help` function.
+
+## How to use this package
+
+The package contains a vignette that fully explains the work flow when using iqtigprm. The vignette is part of the package, if it is build during installation, i.e. by executing `devtools::install(build_vignettes = TRUE)`. The vignette can then be accessed via `browseVignettes("iqtigbdt")`.
+
+Alternatively, the compiled vignette is also contained within the package source files in the documentation folder.
+
+## License
+
+MIT
+
+## References

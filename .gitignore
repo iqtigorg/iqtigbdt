@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+inst/doc
+vignettes/*.R
+*.html
+*.pdf
+/doc/
+/Meta/
