@@ -2,8 +2,7 @@
 title: "Classification of hospital results based on Bayesian decision theory"
 author: "© IQTIG 2022"
 date: "`r Sys.Date()`"
-output:
-  output: rmarkdown::pdf_document
+output: pdf_document
 vignette: >
   %\VignetteIndexEntry{Classification of hospital results based on Bayesian decision theory}
   %\VignetteEngine{knitr::rmarkdown}
